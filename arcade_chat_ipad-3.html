@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Arcade Chat iPad</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#111827;color:#fff;height:100vh;overflow:hidden}
+.app{height:100dvh;display:grid;grid-template-columns:68px 220px 1fr 210px}
+.servers{background:#0b0f17;padding:12px 9px;text-align:center}.server{width:50px;height:50px;border-radius:16px;background:#28324b;margin:0 auto 10px;display:grid;place-items:center;font-size:23px;cursor:pointer}.server.active{background:#5865f2}
+.side{background:#171c28;min-width:0}.title{height:62px;padding:21px 16px;font-weight:800;border-bottom:1px solid #2a3040}.section{padding:18px 13px 6px;color:#8791a7;font-size:11px;font-weight:800}.channel{padding:12px 14px;color:#adb5c7;cursor:pointer;border-radius:8px;margin:2px 8px;font-size:15px}.channel.active,.channel:hover{background:#272e40;color:#fff}
+.main{display:flex;flex-direction:column;background:#202633;min-width:0}.head{height:62px;padding:20px;border-bottom:1px solid #30384a;font-weight:800}.messages{flex:1;overflow:auto;padding:15px 22px}.msg{display:flex;gap:12px;margin:17px 0}.avatar{width:40px;height:40px;border-radius:50%;background:#5865f2;display:grid;place-items:center;flex:none;font-weight:bold}.name{font-weight:800}.time{font-size:11px;color:#737e94;margin-left:8px}.text{margin-top:4px;color:#dce0e8;white-space:pre-wrap;word-break:break-word}.composer{padding:12px 18px calc(12px + env(safe-area-inset-bottom))}.composer form{display:flex;background:#303747;border-radius:12px;min-height:52px}.composer input{min-width:0;flex:1;background:transparent;border:0;outline:0;color:white;padding:14px;font-size:16px}.composer button{border:0;background:#5865f2;color:white;padding:0 20px;border-radius:0 12px 12px 0;font-size:18px}
+.members{background:#171c28;padding:17px}.members h3{font-size:11px;color:#8791a7}.member{padding:10px 3px;color:#ccd2df}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#3ba55d;margin-right:9px}
+.mod{margin-top:18px;padding:13px;border:1px solid #414b62;border-radius:10px;background:#202737}.mod h3{margin:0 0 10px;color:#ffcc66}.mod button{width:100%;margin:5px 0;padding:10px;border:0;border-radius:8px;background:#353e53;color:#fff;cursor:pointer}.mod button:hover{background:#4a5570}
+.modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:20px}.box{background:#1d2432;border:1px solid #46516a;border-radius:16px;padding:20px;width:min(420px,100%)}.box h2{margin-top:0}.box button{padding:11px 15px;margin:5px;border:0;border-radius:8px;background:#5865f2;color:#fff}
+@media(max-width:900px){.app{grid-template-columns:60px 190px 1fr}.members{display:none}}
+@media(max-width:600px){.app{grid-template-columns:56px 1fr}.side{position:absolute;left:56px;top:0;bottom:0;width:210px;z-index:3;display:none}.side.open{display:block}.main{grid-column:2}.servers{grid-column:1}.menu{display:block!important}.head{padding-left:12px}.messages{padding:12px}.composer{padding-left:10px;padding-right:10px}}
+.menu{display:none;float:left;margin-right:12px;border:0;background:transparent;color:white;font-size:20px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="servers">
+<div class="server active">🎮</div><div class="server">🔥</div><div class="server">😂</div><div class="server">＋</div>
+</div>
+<div class="side" id="side">
+<div class="title">Arcade Hub</div>
+<div class="section">TEXT CHANNELS</div>
+<div class="channel active" onclick="switchChannel(this,'general')"># general</div>
+<div class="channel" onclick="switchChannel(this,'gaming')"># gaming</div>
+<div class="channel" onclick="switchChannel(this,'memes')"># memes</div>
+<div class="section">VOICE CHANNELS</div>
+<div class="channel">🔊 Hangout</div><div class="channel">🔊 Gaming</div>
+</div>
+<div class="main">
+<div class="head"><button class="menu" onclick="side.classList.toggle('open')">☰</button># <span id="channelName">general</span></div>
+<div class="messages" id="messages"></div>
+<div class="composer"><form onsubmit="send(event)"><input id="input" maxlength="500" placeholder="Message #general" autocomplete="off"><button>➤</button></form></div>
+</div>
+<div class="members">
+<h3>ONLINE — 4</h3>
+<div class="member"><span class="dot"></span>You</div><div class="member"><span class="dot"></span>Pixel</div><div class="member"><span class="dot"></span>GamerKid</div><div class="member"><span class="dot"></span>Nova</div>
+<div class="mod">
+<h3>🛡️ MOD PANEL</h3>
+<button onclick="announce()">Send announcement</button>
+<button onclick="clearChat()">Clear current chat</button>
+<button onclick="showUsers()">View members</button>
+</div>
+</div>
+</div>
+<div class="modal" id="modal"><div class="box" id="box"></div></div>
+<script>
+/* DEMO ADMIN:
+   The mod panel is displayed only for the chosen owner account in this demo.
+   For a real public site, this must be enforced by a server/database, not browser code. */
+const OWNER="Michael the 56th";
+let username=localStorage.getItem("arcadeUser")||prompt("Choose your username:","Player")||"Player";
+localStorage.setItem("arcadeUser",username);
+let channel="general";
+const defaults={general:[["Pixel","Welcome to Arcade Hub! 🎮"],["Nova","Yo! 👋"],["GamerKid","Anyone wanna game?"]],gaming:[["Nova","What games are you playing?"],["Pixel","I'm on the clicker games 😎"]],memes:[["GamerKid","MEME CHANNEL 😂"],["Pixel","This place is gonna be chaotic"]]};
+let data=JSON.parse(localStorage.getItem("arcadeMessages")||"{}");
+function list(){return data[channel]||defaults[channel]||[]}
+function render(){messages.innerHTML=list().map(m=>`<div class="msg"><div class="avatar">${esc(m[0][0])}</div><div><span class="name">${esc(m[0])}</span><span class="time">today</span><div class="text">${esc(m[1])}</div></div></div>`).join("");messages.scrollTop=messages.scrollHeight}
+function send(e){e.preventDefault();let v=input.value.trim();if(!v)return;(data[channel]??=[]).push([username,v]);localStorage.setItem("arcadeMessages",JSON.stringify(data));input.value="";render()}
+function switchChannel(el,c){document.querySelectorAll(".channel").forEach(x=>x.classList.remove("active"));el.classList.add("active");channel=c;channelName.textContent=c;input.placeholder="Message #"+c;side.classList.remove("open");render()}
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function modal(t){box.innerHTML=t;modalEl.style.display="flex"}const modalEl=document.getElementById("modal");modalEl.onclick=e=>{if(e.target===modalEl)modalEl.style.display="none"}
+function announce(){if(username!==OWNER)return alert("Mod access denied.");let t=prompt("Announcement:");if(t){(data[channel]??=[]).push(["🛡️ MOD",t]);localStorage.setItem("arcadeMessages",JSON.stringify(data));render()}}
+function clearChat(){if(username!==OWNER)return alert("Mod access denied.");if(confirm("Clear this local chat?")){data[channel]=[];localStorage.setItem("arcadeMessages",JSON.stringify(data));render()}}
+function showUsers(){if(username!==OWNER)return alert("Mod access denied.");modal("<h2>Members</h2><p>🟢 "+esc(username)+"</p><p>🟢 Pixel</p><p>🟢 GamerKid</p><p>🟢 Nova</p><button onclick='modalEl.style.display=\"none\"'>Close</button>")}
+if(username!==OWNER)document.querySelector(".mod").style.display="none";
+render();
+</script>
+</body>
+</html>
